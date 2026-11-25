@@ -1,0 +1,13 @@
+# Kunci login WhatsApp. JANGAN PERNAH di-commit: siapa pun yang memegangnya bisa memakai akun Anda.
+session.db*
+*.db
+*.sqlite
+
+# Hasil build, cache build, dan biner pihak ketiga (dibuat ulang oleh build.sh dan pasang-ytdlp.sh)
+stiker
+.cache/
+bin/
+
+# Media pribadi yang tak sengaja ikut tersalin ke folder ini
+*.mp4
+*.mp3

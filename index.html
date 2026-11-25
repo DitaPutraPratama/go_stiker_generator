@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stiker Generator</title>
+<link rel="icon" href="data:,">
+<style>
+  /* Arah desain: alat kerja lokal. Dasar netral hangat, satu aksen hijau tua untuk aksi utama,
+     huruf sistem (jalan offline, tanpa unduhan font), tepi 1px tanpa bayangan. */
+  :root {
+    --bg:#f5f4ef; --surface:#ffffff; --field:#f1f0ea; --ink:#1b1f1d; --muted:#5a615d; --line:#dcd9cf;
+    --accent:#0b7a5a; --accent-ink:#ffffff; --accent-soft:#e3f1ec;
+    --ok:#0b7a5a; --warn:#8a5200; --bad:#b3261e;
+    --r-ctl:8px; --r-card:12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:#111513; --surface:#1a1f1c; --field:#131815; --ink:#ecefec; --muted:#a3aba6; --line:#2e3631;
+      --accent:#4cd2a0; --accent-ink:#06251a; --accent-soft:#18322a;
+      --ok:#4cd2a0; --warn:#f0b35c; --bad:#ff8c82;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:#111513; --surface:#1a1f1c; --field:#131815; --ink:#ecefec; --muted:#a3aba6; --line:#2e3631;
+    --accent:#4cd2a0; --accent-ink:#06251a; --accent-soft:#18322a;
+    --ok:#4cd2a0; --warn:#f0b35c; --bad:#ff8c82;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  .wrap { max-width:960px; margin:0 auto; padding:0 20px; }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  header.top { border-bottom:1px solid var(--line); background:var(--surface); }
+  header.top .wrap { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:60px; }
+  h1 { margin:0; font-size:20px; font-weight:750; letter-spacing:-.02em; }
+  h2 { margin:0; font-size:15px; font-weight:700; }
+  .card > h2 { margin-bottom:12px; }
+
+  .tabs { border-bottom:1px solid var(--line); background:var(--surface); }
+  .tabs .wrap { display:flex; gap:6px; }
+  [role=tab] { appearance:none; background:none; border:0; border-bottom:3px solid transparent; color:var(--muted); font:inherit; font-weight:600;
+    padding:14px 14px 11px; min-height:48px; cursor:pointer; margin-bottom:-1px; }
+  [role=tab]:hover { color:var(--ink); }
+  [role=tab][aria-selected=true] { color:var(--ink); border-bottom-color:var(--accent); }
+
+  main.wrap { padding-top:24px; padding-bottom:56px; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:var(--r-card); padding:20px; margin-bottom:16px; }
+  .cols { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:24px; align-items:start; }
+  @media (max-width:760px) { .cols { grid-template-columns:1fr; } .wrap { padding-left:14px; padding-right:14px; } main.wrap { padding-top:16px; padding-bottom:40px; } }
+
+  label, .lbl { display:block; font-weight:600; margin:16px 0 6px; font-size:14px; }
+  .g:first-child > label:first-child, .g:first-child > .lbl:first-child { margin-top:0; }
+  input[type=text], input[type=url], textarea, select {
+    width:100%; min-height:44px; padding:10px 12px; border:1px solid var(--line); border-radius:var(--r-ctl);
+    background:var(--field); color:var(--ink); font:inherit; }
+  textarea { min-height:104px; resize:vertical; font-size:16px; }
+  input[type=file] { width:100%; padding:7px; border:1px dashed var(--line); border-radius:var(--r-ctl); background:var(--field); color:var(--muted); font:inherit; }
+  input[type=file]::file-selector-button { margin-right:10px; min-height:34px; padding:0 12px; border:1px solid var(--line); border-radius:6px;
+    background:var(--surface); color:var(--ink); font:inherit; font-weight:600; cursor:pointer; }
+  ::placeholder { color:var(--muted); opacity:.85; }
+  .hint { color:var(--muted); font-size:13px; margin:6px 0 0; }
+  .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .row > select { flex:1; min-width:150px; }
+
+  .btn { appearance:none; min-height:44px; padding:0 16px; border-radius:var(--r-ctl); border:1px solid var(--line); background:var(--surface);
+    color:var(--ink); font:inherit; font-weight:600; cursor:pointer; }
+  .btn:hover:not(:disabled) { border-color:var(--muted); }
+  .btn.main { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+  .btn.main:hover:not(:disabled) { filter:brightness(1.07); border-color:var(--accent); }
+  .btn.block { width:100%; margin-top:16px; }
+  .btn:disabled { opacity:.5; cursor:not-allowed; }
+  .link { appearance:none; background:none; border:0; padding:8px 0; min-height:44px; color:var(--muted); font:inherit; font-size:13px; text-decoration:underline; cursor:pointer; }
+  .link:hover { color:var(--ink); }
+
+  .seg { display:inline-flex; border:1px solid var(--line); border-radius:var(--r-ctl); overflow:hidden; background:var(--field); max-width:100%; flex-wrap:wrap; }
+  .seg label { margin:0; font-weight:600; position:relative; }
+  .seg input { position:absolute; opacity:0; inset:0; margin:0; cursor:pointer; }
+  .seg span { display:block; padding:11px 14px; min-height:44px; color:var(--ink); }
+  .seg input:checked + span { background:var(--accent); color:var(--accent-ink); }
+  .seg input:focus-visible + span { outline:2px solid var(--accent); outline-offset:-2px; }
+
+  /* status koneksi */
+  .wa-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; }
+  .status { display:flex; align-items:center; gap:8px; margin:6px 0 0; color:var(--muted); }
+  .dot { width:10px; height:10px; border-radius:50%; background:var(--muted); flex:none; }
+  .dot.ok { background:var(--ok); } .dot.warn { background:var(--warn); } .dot.bad { background:var(--bad); }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; }
+  .qr { display:flex; gap:20px; align-items:center; margin-top:18px; padding-top:18px; border-top:1px solid var(--line); flex-wrap:wrap; }
+  .qr img { width:220px; height:220px; image-rendering:pixelated; background:#fff; border:1px solid var(--line); border-radius:var(--r-ctl); }
+  .qr ol { margin:0; padding-left:20px; color:var(--muted); max-width:34ch; }
+
+  fieldset { border:0; padding:0; margin:0; min-width:0; }
+  fieldset:disabled { opacity:.5; }
+  .kunci { margin:0 0 16px; padding:10px 12px; border-radius:var(--r-ctl); background:var(--accent-soft); color:var(--ink); font-size:14px; }
+
+  .preview { aspect-ratio:1/1; width:100%; border-radius:var(--r-card); overflow:hidden; display:grid; place-items:center; border:1px solid var(--line);
+    background-color:var(--field);
+    background-image:linear-gradient(45deg,var(--line) 25%,transparent 25%),linear-gradient(-45deg,var(--line) 25%,transparent 25%),linear-gradient(45deg,transparent 75%,var(--line) 75%),linear-gradient(-45deg,transparent 75%,var(--line) 75%);
+    background-size:20px 20px; background-position:0 0,0 10px,10px -10px,-10px 0; }
+  canvas, video { width:100%; height:100%; display:block; object-fit:contain; }
+  input[type=range] { width:100%; min-height:44px; accent-color:var(--accent); }
+  canvas.geser { cursor:grab; touch-action:none; }
+  canvas.geser:active { cursor:grabbing; }
+  .sticky { position:sticky; top:16px; }
+  .out { margin:14px 0 0; font-weight:600; min-height:1.5em; }
+  .out.ok { color:var(--ok); } .out.err { color:var(--bad); } .out.wait { color:var(--muted); font-weight:500; }
+  .notice { margin:0 0 16px; padding:12px 14px; border-radius:var(--r-ctl); border:1px solid var(--warn); color:var(--ink); font-size:14px; }
+  .notice code { background:var(--field); padding:1px 5px; border-radius:4px; }
+  .lead { margin:4px 0 18px; color:var(--muted); }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <h1>Stiker Generator</h1>
+  <button class="btn" id="tema" type="button" aria-label="Ganti tema">Tema: otomatis</button>
+</div></header>
+
+<div class="tabs"><div class="wrap" role="tablist" aria-label="Fitur">
+  <button role="tab" id="tab-gen" aria-controls="p-gen" aria-selected="true" type="button">Generator stiker</button>
+  <button role="tab" id="tab-unduh" aria-controls="p-unduh" aria-selected="false" tabindex="-1" type="button">Unduh media</button>
+</div></div>
+
+<main class="wrap">
+  <!-- ============ TAB 1: GENERATOR ============ -->
+  <section id="p-gen" role="tabpanel" aria-labelledby="tab-gen">
+    <div class="card" id="wa">
+      <div class="wa-head">
+        <div>
+          <h2>WhatsApp</h2>
+          <p class="status"><span class="dot" id="dot"></span><span id="statusTeks" role="status">Memeriksa…</span></p>
+        </div>
+        <div class="actions">
+          <button class="btn" id="bRefresh" type="button">Refresh</button>
+          <button class="btn" id="bKonek" type="button">Konek</button>
+          <button class="btn" id="bPutus" type="button">Putuskan</button>
+        </div>
+      </div>
+      <div class="qr" id="qrBox" hidden>
+        <img id="qr" alt="Kode QR untuk menautkan WhatsApp" width="220" height="220">
+        <ol>
+          <li>Buka WhatsApp di HP.</li>
+          <li>Pilih Perangkat tertaut, lalu Tautkan perangkat.</li>
+          <li>Arahkan kamera ke kode ini.</li>
+        </ol>
+      </div>
+      <button class="link" id="bKeluar" type="button">Keluar akun dan hapus sesi tersimpan</button>
+    </div>
+
+    <div class="card">
+      <h2>Buat stiker</h2>
+      <p class="kunci" id="kunci">Hubungkan WhatsApp di atas dulu. Formulir ini terbuka setelah status tersambung.</p>
+      <fieldset id="buat" disabled>
+        <div class="g">
+          <label for="jenis">Jenis stiker</label>
+          <select id="jenis">
+            <option value="video">Stiker video</option>
+            <option value="gambar">Stiker gambar</option>
+            <option value="gambarteks">Stiker gambar dengan teks</option>
+            <option value="teksuara">Stiker teks dengan suara</option>
+            <option value="teks">Stiker teks</option>
+          </select>
+        </div>
+
+        <div class="cols" style="margin-top:18px">
+          <div>
+            <div class="g" id="gFile"><label for="file" id="fileLabel">Video</label><input type="file" id="file"></div>
+            <div class="g" id="gTeks"><label for="teks">Teks</label><textarea id="teks"></textarea>
+              <p class="hint">Baris dipotong otomatis. Tekan Enter untuk ganti baris.</p></div>
+            <div class="g" id="gCap">
+              <span class="lbl">Posisi teks</span>
+              <div class="seg" role="radiogroup" aria-label="Posisi teks">
+                <label><input type="radio" name="pos" value="bawah" checked><span>Bawah</span></label>
+                <label><input type="radio" name="pos" value="tengah"><span>Tengah</span></label>
+                <label><input type="radio" name="pos" value="atas"><span>Atas</span></label>
+              </div>
+              <label for="ukuran">Ukuran teks</label>
+              <input type="range" id="ukuran" min="16" max="90" value="90">
+            </div>
+            <div class="g" id="gBlok">
+              <span class="lbl">Perataan</span>
+              <div class="seg" role="radiogroup" aria-label="Perataan teks">
+                <label><input type="radio" name="rata" value="justify" checked><span>Rata kanan-kiri</span></label>
+                <label><input type="radio" name="rata" value="left"><span>Kiri</span></label>
+                <label><input type="radio" name="rata" value="center"><span>Tengah</span></label>
+              </div>
+              <label for="font">Huruf</label>
+              <div class="row">
+                <select id="font">
+                  <option value='Arial, "Helvetica Neue", Helvetica, "Liberation Sans", sans-serif'>Arial / Helvetica</option>
+                  <option value='Roboto, "Segoe UI", system-ui, sans-serif'>Roboto / Sistem</option>
+                  <option value='Verdana, "DejaVu Sans", sans-serif'>Verdana</option>
+                  <option value='"Times New Roman", Times, serif'>Times</option>
+                  <option value='"Comic Sans MS", "Comic Neue", cursive'>Comic Sans</option>
+                </select>
+                <label style="margin:0;display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="tebal"> Tebal</label>
+              </div>
+              <label style="display:flex;gap:8px;align-items:center;font-weight:400;margin-top:12px"><input type="checkbox" id="sudut" checked> Sudut membulat</label>
+            </div>
+            <div class="g" id="gAudio"><label for="audio">Suara</label><input type="file" id="audio" accept="audio/*,video/*">
+              <p class="hint" id="audioNote"></p></div>
+            <div class="g"><label for="ke">Kirim ke</label><input type="text" id="ke" placeholder="628123456789" inputmode="numeric" autocomplete="off">
+              <p class="hint">Kosongkan untuk mengirim ke chat dengan diri sendiri.</p></div>
+          </div>
+
+          <div class="sticky">
+            <div class="preview"><canvas id="cv" width="512" height="512" aria-label="Pratinjau stiker"></canvas><video id="pv" controls loop playsinline hidden></video></div>
+            <button class="btn main block" id="kirim" type="button">Kirim stiker ke WhatsApp</button>
+            <p class="out" id="hasil" role="status"></p>
+          </div>
+        </div>
+      </fieldset>
+    </div>
+  </section>
+
+  <!-- ============ TAB 2: UNDUH MEDIA ============ -->
+  <section id="p-unduh" role="tabpanel" aria-labelledby="tab-unduh" hidden>
+    <div class="card">
+      <h2>Unduh media</h2>
+      <p class="lead">Tempel tautan video publik dari YouTube, Facebook, Instagram, atau TikTok. Unduh hanya konten yang Anda berhak pakai.</p>
+      <div class="notice" id="noYtdlp" hidden>
+        <strong>yt-dlp belum terpasang.</strong> Fitur ini memakainya untuk mengambil media. Unduh berkas <code>yt-dlp_linux</code> dari
+        halaman rilis resmi github.com/yt-dlp/yt-dlp, simpan sebagai <code>bin/yt-dlp</code> di folder program ini, jalankan
+        <code>chmod +x bin/yt-dlp</code>, lalu muat ulang halaman. Paket <code>apt</code> biasanya terlalu lama untuk YouTube sekarang.
+      </div>
+      <form id="formUnduh" novalidate>
+        <div class="g"><label for="url">Tautan</label>
+          <input type="url" id="url" placeholder="https://www.youtube.com/watch?v=…" autocomplete="off" inputmode="url"></div>
+        <div class="g"><span class="lbl">Format</span>
+          <div class="seg" role="radiogroup" aria-label="Format unduhan">
+            <label><input type="radio" name="mode" value="video" checked><span>Video MP4</span></label>
+            <label><input type="radio" name="mode" value="audio"><span>Audio MP3</span></label>
+          </div></div>
+        <div class="g" id="gTinggi"><label for="tinggi">Kualitas video</label>
+          <select id="tinggi">
+            <option value="0">Terbaik yang tersedia</option>
+            <option value="1080">Maksimal 1080p</option>
+            <option value="720" selected>Maksimal 720p</option>
+            <option value="480">Maksimal 480p</option>
+            <option value="360">Maksimal 360p</option>
+          </select>
+          <p class="hint">Batas ukuran berkas 300 MB.</p></div>
+        <button class="btn main block" id="bUnduh" type="submit">Unduh</button>
+      </form>
+      <p class="out" id="hasilUnduh" role="status"></p>
+    </div>
+  </section>
+</main>
+
+<script>
+const S = 512, el = id => document.getElementById(id);
+const pilih = nama => document.querySelector(`input[name=${nama}]:checked`).value;
+
+/* ---------- tema ---------- */
+const TEMA = ['auto', 'light', 'dark'], NAMA = { auto: 'otomatis', light: 'terang', dark: 'gelap' };
+function setTema(t) {
+  if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.dataset.theme = t;
+  el('tema').textContent = 'Tema: ' + NAMA[t]; localStorage.setItem('tema', t);
+}
+setTema(TEMA.includes(localStorage.getItem('tema')) ? localStorage.getItem('tema') : 'auto');
+el('tema').onclick = () => setTema(TEMA[(TEMA.indexOf(localStorage.getItem('tema')) + 1) % 3]);
+
+/* ---------- tab ---------- */
+const tabs = [...document.querySelectorAll('[role=tab]')];
+function bukaTab(t, fokus) {
+  tabs.forEach(b => {
+    const on = b === t;
+    b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1;
+    el(b.getAttribute('aria-controls')).hidden = !on;
+  });
+  if (fokus) t.focus();
+  history.replaceState(null, '', t.id === 'tab-unduh' ? '#unduh' : '#');
+}
+tabs.forEach((b, i) => {
+  b.onclick = () => bukaTab(b);
+  b.onkeydown = e => {
+    const n = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+    if (n) { e.preventDefault(); bukaTab(tabs[(i + n + tabs.length) % tabs.length], true); }
+  };
+});
+if (location.hash === '#unduh') bukaTab(el('tab-unduh'));
+
+/* ---------- koneksi WhatsApp ---------- */
+let qrN = -1, state = '', sibukUnduh = false;
+const TAMPIL = {
+  menyambung: ['warn', 'Menyambung ke WhatsApp…'],
+  qr:         ['warn', 'Menunggu scan kode QR'],
+  terputus:   ['', 'Terputus. Tekan Konek untuk menyambung lagi.'],
+  keluar:     ['bad', 'Sesi dicabut dari HP. Tekan Konek untuk menautkan ulang.'],
+};
+async function cek() {
+  let s;
+  try { s = await (await fetch('/status')).json(); }
+  catch { s = { state: 'galat', pesan: 'Server tidak merespons.' }; }
+  state = s.state;
+  const [kelas, teks] = state === 'tersambung' ? ['ok', 'Tersambung sebagai +' + (s.nomor || '')]
+    : state === 'galat' ? ['bad', 'Gagal: ' + (s.pesan || 'tidak diketahui')] : TAMPIL[state] || ['', state];
+  el('dot').className = 'dot ' + kelas; el('statusTeks').textContent = teks;
+  const aktif = ['menyambung', 'qr', 'tersambung'].includes(state);
+  el('bKonek').disabled = aktif; el('bPutus').disabled = !aktif;
+  el('buat').disabled = state !== 'tersambung'; el('kunci').hidden = state === 'tersambung';
+  el('noYtdlp').hidden = s.ytdlp !== false;
+  el('bUnduh').disabled = s.ytdlp === false || sibukUnduh;
+  el('qrBox').hidden = state !== 'qr';
+  if (state === 'qr' && s.n !== qrN) { qrN = s.n; el('qr').src = '/qr.png?n=' + s.n; }
+  if (state !== 'qr') qrN = -1;
+}
+async function aksi(tombol, path, konfirmasi) {
+  if (konfirmasi && !confirm(konfirmasi)) return;
+  const asal = tombol.textContent; tombol.disabled = true; tombol.textContent = '…';
+  if (path) try { await fetch(path, { method: 'POST' }); } catch {}
+  tombol.textContent = asal; tombol.disabled = false; await cek();
+}
+el('bRefresh').onclick = () => aksi(el('bRefresh'), null);
+el('bKonek').onclick = () => aksi(el('bKonek'), '/konek');
+el('bPutus').onclick = () => aksi(el('bPutus'), '/putus');
+el('bKeluar').onclick = () => aksi(el('bKeluar'), '/keluar', 'Keluar akun menghapus sesi tersimpan. Untuk memakai lagi, Anda perlu scan QR ulang. Lanjut?');
+setInterval(cek, 2000); cek();
+
+/* ---------- gambar teks ---------- */
+const cv = el('cv'), ctx = cv.getContext('2d');
+const JENIS = {
+  video:      { file: 'video',  teks: null,      audio: 'Kosong = pakai suara dari video.' },
+  gambar:     { file: 'gambar', teks: null,      audio: 'Kosong = stiker biasa tanpa suara.' },
+  gambarteks: { file: 'gambar', teks: 'caption', audio: 'Kosong = stiker biasa tanpa suara.' },
+  teksuara:   { file: null,     teks: 'blok',    audio: 'Wajib diisi.' },
+  teks:       { file: null,     teks: 'blok',    audio: null },
+};
+let img = null, capDx = 0, capDy = 0;
+const jenis = () => JENIS[el('jenis').value];
+
+function setFont(size, tebal) { ctx.font = `${tebal ? 'bold ' : ''}${size}px ${el('font').value}`; }
+// Bungkus kata rakus; Enter = ganti baris paksa. null kalau satu kata pun tak muat.
+function wrap(text, maxW) {
+  const out = [], space = ctx.measureText(' ').width;
+  for (const para of text.split('\n')) {
+    const words = para.trim().split(/\s+/).filter(Boolean);
+    if (!words.length) { out.push({ words: [] }); continue; }
+    let line = [], w = 0;
+    for (const word of words) {
+      const ww = ctx.measureText(word).width;
+      if (ww > maxW) return null;
+      const next = line.length ? w + space + ww : ww;
+      if (next <= maxW || !line.length) { line.push(word); w = next; }
+      else { out.push({ words: line }); line = [word]; w = ww; }
+    }
+    out.push({ words: line });
+  }
+  return out;
+}
+// Ukuran huruf terbesar yang muat (pencarian biner).
+function ajar(text, maxW, maxH, lhF, tebal, maks) {
+  let lo = 6, hi = maks, best = null, size = 6;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    setFont(mid, tebal);
+    const lines = wrap(text, maxW);
+    if (lines && (lines.length - 1) * mid * lhF + mid <= maxH) { best = lines; size = mid; lo = mid + 1; } else hi = mid - 1;
+  }
+  setFont(size, tebal);
+  return { lines: best || [], size };
+}
+function blok(text) {
+  const pad = 34, lhF = 1.12, maxW = S - pad * 2;
+  ctx.fillStyle = '#fff';
+  if (el('sudut').checked) { ctx.beginPath(); ctx.roundRect(0, 0, S, S, 28); ctx.fill(); } else ctx.fillRect(0, 0, S, S);
+  if (!text.trim()) return;
+  const { lines, size } = ajar(text, maxW, maxW, lhF, el('tebal').checked, 400);
+  const m = ctx.measureText('Hgjy'), asc = m.actualBoundingBoxAscent || size * .75, desc = m.actualBoundingBoxDescent || size * .22;
+  const lineH = size * lhF, space = ctx.measureText(' ').width, align = pilih('rata');
+  let y = (S - ((lines.length - 1) * lineH + asc + desc)) / 2 + asc;
+  ctx.fillStyle = '#000'; ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+  for (const { words } of lines) {
+    const ws = words.map(w => ctx.measureText(w).width), sum = ws.reduce((a, b) => a + b, 0);
+    let x = pad;
+    if (align === 'justify' && words.length > 1) {
+      const gap = (maxW - sum) / (words.length - 1);
+      words.forEach((w, k) => { ctx.fillText(w, x, y); x += ws[k] + gap; });
+    } else {
+      if (align === 'center') x = pad + (maxW - sum - space * Math.max(0, words.length - 1)) / 2;
+      words.forEach((w, k) => { ctx.fillText(w, x, y); x += ws[k] + space; });
+    }
+    y += lineH;
+  }
+}
+let tampilBox = true; // kotak penanda hanya untuk pratinjau, tidak ikut ke stiker
+const jepit = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+function caption(text) {
+  if (!text.trim()) return;
+  const { lines, size } = ajar(text, S - 48, 170, 1.1, true, +el('ukuran').value);
+  const lineH = size * 1.1, h = (lines.length - 1) * lineH + size;
+  const bw = Math.max(...lines.map(l => ctx.measureText(l.words.join(' ')).width));
+  const pos = pilih('pos'), baseY = pos === 'atas' ? 20 : pos === 'tengah' ? (S - h) / 2 : S - 20 - h;
+  // Teks boleh keluar dari stiker (bagian luar terpotong), tapi minimal 30px harus tersisa di dalam supaya tidak hilang.
+  const MASIH = 30;
+  const x = jepit(S / 2 + capDx, MASIH - bw / 2, S + bw / 2 - MASIH);
+  const top = jepit(baseY + capDy, MASIH - h, S - MASIH);
+  capDx = x - S / 2; capDy = top - baseY;
+  let y = top;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.lineJoin = 'round';
+  ctx.lineWidth = size / 5; ctx.strokeStyle = '#000'; ctx.fillStyle = '#fff';
+  for (const { words } of lines) {
+    const t = words.join(' ');
+    ctx.strokeText(t, x, y); ctx.fillText(t, x, y);
+    y += lineH;
+  }
+  if (tampilBox) {
+    const p = 8 + size / 10;
+    ctx.save();
+    ctx.setLineDash([10, 7]); ctx.lineWidth = 3; ctx.strokeStyle = '#ffc400';
+    ctx.shadowColor = 'rgba(0,0,0,.7)'; ctx.shadowBlur = 3;
+    ctx.strokeRect(x - bw / 2 - p, top - p, bw + 2 * p, h + 2 * p);
+    ctx.restore();
+  }
+}
+async function ekspor() {
+  tampilBox = false; draw();
+  const b = await new Promise(r => cv.toBlob(r, 'image/png'));
+  tampilBox = true; draw();
+  return b;
+}
+
+// Geser teks: seret dengan mouse/jari, atau tombol panah saat pratinjau difokus.
+let seret = null;
+const bisaGeser = () => jenis().teks === 'caption' && el('teks').value.trim();
+cv.addEventListener('pointerdown', e => {
+  if (!bisaGeser()) return;
+  seret = { x: e.clientX, y: e.clientY, dx: capDx, dy: capDy };
+  try { cv.setPointerCapture(e.pointerId); } catch {} // ketukan sintetis tidak punya pointer aktif
+});
+cv.addEventListener('pointermove', e => {
+  if (!seret) return;
+  const k = S / cv.getBoundingClientRect().width;
+  capDx = seret.dx + (e.clientX - seret.x) * k; capDy = seret.dy + (e.clientY - seret.y) * k;
+  draw();
+});
+['pointerup', 'pointercancel'].forEach(n => cv.addEventListener(n, () => { seret = null; }));
+cv.addEventListener('keydown', e => {
+  const a = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+  if (!a || !bisaGeser()) return;
+  e.preventDefault();
+  const n = e.shiftKey ? 32 : 8;
+  capDx += a[0] * n; capDy += a[1] * n;
+  draw();
+});
+function draw() {
+  const j = jenis();
+  if (j.file === 'video') return;
+  ctx.clearRect(0, 0, S, S);
+  const text = el('teks').value.replace(/\r/g, '');
+  if (j.teks === 'blok') return blok(text);
+  if (img) {
+    const k = Math.min(S / img.width, S / img.height), w = img.width * k, h = img.height * k;
+    ctx.drawImage(img, (S - w) / 2, (S - h) / 2, w, h);
+  }
+  if (j.teks === 'caption') caption(text);
+}
+
+/* ---------- form stiker ---------- */
+function ubah() {
+  const j = jenis();
+  el('gFile').hidden = !j.file;
+  el('fileLabel').textContent = j.file === 'video' ? 'Video' : 'Foto';
+  el('file').accept = j.file === 'video' ? 'video/*,image/gif' : 'image/*';
+  el('file').value = ''; img = null; capDx = capDy = 0;
+  const geser = j.teks === 'caption';
+  cv.classList.toggle('geser', geser);
+  if (geser) cv.tabIndex = 0; else cv.removeAttribute('tabindex');
+  cv.setAttribute('aria-label', geser ? 'Pratinjau stiker. Geser teks dengan mouse, jari, atau tombol panah.' : 'Pratinjau stiker');
+  el('pv').hidden = j.file !== 'video'; el('cv').hidden = j.file === 'video';
+  el('pv').removeAttribute('src');
+  el('gTeks').hidden = !j.teks;
+  el('gBlok').hidden = j.teks !== 'blok';
+  el('gCap').hidden = j.teks !== 'caption';
+  el('gAudio').hidden = !j.audio;
+  el('audioNote').textContent = j.audio || '';
+  el('hasil').textContent = ''; el('hasil').className = 'out';
+  draw();
+}
+el('jenis').onchange = ubah;
+el('file').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  if (jenis().file === 'video') { el('pv').src = URL.createObjectURL(f); return; }
+  img = await createImageBitmap(f).catch(() => null);
+  draw();
+};
+['teks', 'font', 'tebal', 'sudut', 'ukuran'].forEach(id => { el(id).oninput = draw; el(id).onchange = draw; });
+document.querySelectorAll('input[name=rata]').forEach(r => r.onchange = draw);
+document.querySelectorAll('input[name=pos]').forEach(r => r.onchange = () => { capDx = capDy = 0; draw(); });
+
+el('kirim').onclick = async () => {
+  const j = jenis(), hasil = el('hasil'), fd = new FormData();
+  const tampil = (kelas, m) => { hasil.className = 'out ' + kelas; hasil.textContent = m; };
+  if (j.file && !el('file').files[0]) return tampil('err', 'Pilih ' + (j.file === 'video' ? 'video' : 'foto') + ' dulu.');
+  if (j.teks && !el('teks').value.trim()) return tampil('err', 'Isi teksnya dulu.');
+  if (j.audio === 'Wajib diisi.' && !el('audio').files[0]) return tampil('err', 'Pilih file suara dulu.');
+  if (j.file === 'video') fd.append('visual', el('file').files[0]);
+  else fd.append('visual', await ekspor(), 'stiker.png');
+  if (j.audio && el('audio').files[0]) fd.append('audio', el('audio').files[0]);
+  fd.append('ke', el('ke').value.trim());
+
+  el('kirim').disabled = true; tampil('wait', 'Memproses dan mengirim…');
+  try {
+    const r = await fetch('/kirim', { method: 'POST', body: fd });
+    const d = await r.json();
+    r.ok ? tampil('ok', d.pesan) : tampil('err', d.error || 'Gagal mengirim.');
+  } catch { tampil('err', 'Server tidak merespons.'); }
+  finally { el('kirim').disabled = false; }
+};
+
+/* ---------- unduh media ---------- */
+document.querySelectorAll('input[name=mode]').forEach(r => r.onchange = () => el('gTinggi').hidden = pilih('mode') !== 'video');
+el('formUnduh').onsubmit = async e => {
+  e.preventDefault();
+  const out = el('hasilUnduh'), url = el('url').value.trim();
+  const tampil = (kelas, m) => { out.className = 'out ' + kelas; out.textContent = m; };
+  if (!url) return tampil('err', 'Tempel tautan dulu.');
+  sibukUnduh = true; el('bUnduh').disabled = true;
+  let detik = 0; const t0 = setInterval(() => tampil('wait', `Mengunduh… ${++detik} detik. Video panjang bisa makan beberapa menit.`), 1000);
+  tampil('wait', 'Mengunduh…');
+  try {
+    const r = await fetch('/unduh', { method: 'POST', body: new URLSearchParams({ url, mode: pilih('mode'), tinggi: el('tinggi').value }) });
+    if (!r.ok) { const d = await r.json().catch(() => ({})); return tampil('err', d.error || 'Gagal mengunduh.'); }
+    const nama = decodeURIComponent(r.headers.get('X-Nama-File') || 'media');
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = nama; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    tampil('ok', `Selesai: ${nama} (${(blob.size / 1e6).toFixed(1)} MB)`);
+  } catch { tampil('err', 'Server tidak merespons.'); }
+  finally { clearInterval(t0); sibukUnduh = false; el('bUnduh').disabled = false; }
+};
+
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+    this.moveTo(x + r, y); this.arcTo(x + w, y, x + w, y + h, r); this.arcTo(x + w, y + h, x, y + h, r);
+    this.arcTo(x, y + h, x, y, r); this.arcTo(x, y, x + w, y, r); this.closePath();
+  };
+}
+ubah();
+</script>
+</body>
+</html>
